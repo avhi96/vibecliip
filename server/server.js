@@ -6,11 +6,24 @@ import connectDB from './utils/db.js';
 import userRoute from './routes/user.route.js';
 import postRoute from './routes/post.route.js';
 import messageRoute from './routes/message.route.js';
+import authRoute from './routes/auth.route.js';
+import admin from 'firebase-admin';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const serviceAccountPath = path.resolve('./firebase-service-account.json');
+const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+
+dotenv.config({ path: './server/.env' });
 const app = express();
 
-
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 const PORT = process.env.PORT || 5000;
 
@@ -38,6 +51,7 @@ app.use(cors(corsOptions));
 app.use("/api/v1/user", userRoute);
 app.use("/api/v1/post", postRoute);
 app.use("/api/v1/message", messageRoute);
+app.use("/api/v1/auth", authRoute);
 
 app.listen(PORT, () => {
     connectDB();

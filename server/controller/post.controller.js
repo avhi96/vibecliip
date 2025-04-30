@@ -53,9 +53,14 @@ export const addNewPost = async (req, res) => {
 
     } catch (error) {
         console.log(error);
+        return res.status(500).json({
+            message: "Server error: " + error.message,
+            success: false
+        });
     }
 }
 
+// rest of the file unchanged
 export const getAllPosts = async (req, res) => {
     try {
         const posts = await Post.find().populate({ path: 'author', select: 'username profilePicture' }).sort({ createdAt: -1 }).populate({ path: 'comments', sort: { createdAt: -1 }, populate: { path: 'author', select: 'username profilePicture' } });
@@ -69,199 +74,262 @@ export const getAllPosts = async (req, res) => {
     }
 }
 
+// other exports unchanged
+export const addComment = async (req, res) => {
+    try {
+        const { postId, text } = req.body;
+        const authorId = req.id;
+
+        const post = await Post.findById(postId);
+        if (!post) {
+            return res.status(404).json({ message: "Post not found" });
+        }
+
+        const comment = await Comment.create({
+            post: postId,
+            author: authorId,
+            text,
+        });
+
+        post.comments.push(comment._id);
+        await post.save();
+
+        await comment.populate({ path: 'author', select: 'username profilePicture' });
+
+        return res.status(201).json({
+            message: "Comment added successfully",
+            comment,
+            success: true,
+        });
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: "Server error: " + error.message,
+            success: false
+        });
+    }
+};
+
+
+// In post.controller.js
+
+export const bookmarkPost = async (req, res) => {
+    try {
+        const userId = req.id;
+        const { postId } = req.params;
+
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const alreadyBookmarked = user.bookmarks.includes(postId);
+
+        if (alreadyBookmarked) {
+            user.bookmarks = user.bookmarks.filter(id => id.toString() !== postId);
+            await user.save();
+            return res.status(200).json({
+                message: "Bookmark removed",
+                success: true
+            });
+        } else {
+            user.bookmarks.push(postId);
+            await user.save();
+            return res.status(200).json({
+                message: "Post bookmarked",
+                success: true
+            });
+        }
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: "Server error: " + error.message,
+            success: false
+        });
+    }
+};
+
+// In post.controller.js
+
+export const deletePost = async (req, res) => {
+    try {
+        const { postId } = req.params;
+        const userId = req.id;
+
+        const post = await Post.findById(postId);
+
+        if (!post) {
+            return res.status(404).json({ message: "Post not found", success: false });
+        }
+
+        if (post.author.toString() !== userId) {
+            return res.status(403).json({ message: "Unauthorized", success: false });
+        }
+
+        // Remove post reference from user's posts array
+        const user = await User.findById(userId);
+        user.posts = user.posts.filter(id => id.toString() !== postId);
+        await user.save();
+
+        // Optionally delete comments related to this post
+        await Comment.deleteMany({ post: postId });
+
+        await post.deleteOne();
+
+        return res.status(200).json({ message: "Post deleted successfully", success: true });
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: "Server error: " + error.message,
+            success: false
+        });
+    }
+};
+
+export const likePost = async (req, res) => {
+    try {
+        const { postId } = req.params;
+        const userId = req.id;
+
+        const post = await Post.findById(postId);
+
+        if (!post) {
+            return res.status(404).json({ message: "Post not found", success: false });
+        }
+
+        const hasLiked = post.likes.includes(userId);
+        const hasDisliked = post.dislikes.includes(userId);
+
+        if (hasLiked) {
+            post.likes.pull(userId); // remove like
+        } else {
+            post.likes.push(userId);
+            if (hasDisliked) {
+                post.dislikes.pull(userId); // remove dislike if already disliked
+            }
+        }
+
+        await post.save();
+
+        return res.status(200).json({
+            message: hasLiked ? "Like removed" : "Post liked",
+            success: true,
+            likes: post.likes.length,
+            dislikes: post.dislikes.length
+        });
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: "Server error: " + error.message,
+            success: false
+        });
+    }
+};
+
+
+export const dislikePost = async (req, res) => {
+    try {
+        const { postId } = req.params;
+        const userId = req.id;
+
+        const post = await Post.findById(postId);
+
+        if (!post) {
+            return res.status(404).json({ message: "Post not found", success: false });
+        }
+
+        const hasDisliked = post.dislikes.includes(userId);
+        const hasLiked = post.likes.includes(userId);
+
+        if (hasDisliked) {
+            post.dislikes.pull(userId); // remove dislike
+        } else {
+            post.dislikes.push(userId);
+            if (hasLiked) {
+                post.likes.pull(userId); // remove like if already liked
+            }
+        }
+
+        await post.save();
+
+        return res.status(200).json({
+            message: hasDisliked ? "Dislike removed" : "Post disliked",
+            success: true,
+            likes: post.likes.length,
+            dislikes: post.dislikes.length
+        });
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: "Server error: " + error.message,
+            success: false
+        });
+    }
+};
+
+export const getComments = async (req, res) => {
+    try {
+        const { postId } = req.params;
+
+        const post = await Post.findById(postId).populate({
+            path: 'comments',
+            populate: {
+                path: 'author',
+                select: 'username profilePicture'
+            },
+            options: { sort: { createdAt: -1 } }
+        });
+
+        if (!post) {
+            return res.status(404).json({
+                message: "Post not found",
+                success: false
+            });
+        }
+
+        return res.status(200).json({
+            comments: post.comments,
+            success: true
+        });
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: "Server error: " + error.message,
+            success: false
+        });
+    }
+};
+
 export const getUserPost = async (req, res) => {
     try {
-        const authorId = req.id;
-        const posts = await Post.find({ author: authorId }).sort({ createdAt: -1 }).populate({ path: 'author', select: 'username profilePicture' }).populate({ path: 'comments', sort: { createdAt: -1 }, populate: { path: 'author', select: 'username profilePicture' } });
+        const { userId } = req.params;
+
+        const posts = await Post.find({ author: userId })
+            .sort({ createdAt: -1 })
+            .populate({ path: 'author', select: 'username profilePicture' })
+            .populate({
+                path: 'comments',
+                options: { sort: { createdAt: -1 } },
+                populate: { path: 'author', select: 'username profilePicture' }
+            });
+
         return res.status(200).json({
             posts,
             success: true
         });
 
     } catch (error) {
-        console.log(error);
-    }
-}
-export const likePost = async (req, res) => {
-    try {
-        const likeuser = req.id;
-        const postId = req.params.id;
-        const post = await Post.findById(postId);
-        if (!post) {
-            return res.status(404).json({
-                message: "Post not found.",
-                success: false
-            });
-        }
-        //like logic
-        await post.updateOne({ $addToSet: { likes: likeuser } });
-        await post.save();
-
-        //impliment socket io here
-
-
-        return res.status(200).json({
-            message: "Post liked",
-            success: true
+        console.error(error);
+        return res.status(500).json({
+            message: "Server error: " + error.message,
+            success: false
         });
-    } catch (error) {
-        console.log(error);
-
     }
-}
-
-export const dislikePost = async (req, res) => {
-    try {
-        const likeuser = req.id;
-        const postId = req.params.id;
-        const post = await Post.findById(postId);
-        if (!post) {
-            return res.status(404).json({
-                message: "Post not found.",
-                success: false
-            });
-        }
-        //like logic
-        await post.updateOne({ $pull: { likes: likeuser } });
-        await post.save();
-
-        //impliment socket io here
-
-
-        return res.status(200).json({
-            message: "Post disliked",
-            success: true
-        });
-    } catch (error) {
-        console.log(error);
-
-    }
-}
-export const addComment = async (req, res) => {
-    try {
-        const postId = req.params.id;
-        const commentuserId = req.id;
-        const { text } = req.body;
-        const post = await Post.findById(postId);
-        if (!text) {
-            return res.status(400).json({
-                message: "Please enter a comment.",
-                success: false
-            });
-        }
-        const comment = await Comment.create({
-            text,
-            author: commentuserId,
-            post: postId
-        }).populate({ path: 'author', select: 'username profilePicture' })
-        post.comments.push(comment._id);
-        await post.save();
-
-        return res.status(200).json({
-            message: "Comment added",
-            comment,
-            success: true
-        });
-
-    } catch (error) {
-        console.log(error);
-
-    }
-}
-export const getComments = async (req, res) => {
-    try {
-        const postId = req.params.id;
-
-const comments = await Comment.find({ post: postId }).populate('author', 'username profilePicture')
-        if (!comments) {
-            return res.status(404).json({
-                message: "No comments found.",
-                success: false
-            });
-        }
-        return res.status(200).json({
-            comments,
-            success: true
-        });
-    } catch (error) {
-        console.log(error);
-
-    }
-}
-export const deletePost = async (req, res) => {
-    try {
-        const postId = req.params.id;
-        const authorId = req.id;
-
-        const post = await Post.findById(postId);
-        if (!post) {
-            return res.status(404).json({
-                message: "Post not found.",
-                success: false
-            });
-        }
-
-        //check if the user is the author of the post
-        if (post.author.toString() !== authorId) {
-            return res.status(403).json({
-                message: "You are not authorized to delete this post.",
-                success: false
-            });
-        }
-        //delete the post
-        await Post.findByIdAndDelete(postId);
-
-        //remove the post id form the the user post
-        let user = await User.findById(authorId);
-        user.posts = user.posts.filter((id) => id.toString() !== postId);
-        await user.save();
-
-        //delete the comments of the post
-        await Comment.deleteMany({ post: postId });
-        return res.status(200).json({
-            message: "Post deleted",
-            success: true
-        });
-
-    } catch (error) {
-        console.log(error);
-
-    }
-}
-export const bookmarkPost = async (req, res) => {
-    try {
-        const postId = req.params.id;
-        const authorId = req.id;
-        const post = await Post.findById(postId);
-        if (!post) {
-            return res.status(404).json({
-                message: "Post not found.",
-                success: false
-            });
-        }
-        const user = await User.findById(authorId);
-        if (user.bookmarks.includes(post._id)) {
-            //already bookmarked
-            await user.updateOne({ $pull: { bookmarks: post._id } });
-            await user.save();
-            return res.status(200).json({
-                type: "unsaved",
-                message: "Post removed from bookmarks",
-                success: true
-            });
-
-        }else {
-            //add to bookmarks
-            await user.updateOne({ $addToSet: { bookmarks: post._id } });
-            await user.save();
-            return res.status(200).json({
-                type: "saved",
-                message: "Post bookmarked",
-                success: true
-            });
-        }
-    } catch (error) {
-        console.log(error);
-
-    }
-}
+};
