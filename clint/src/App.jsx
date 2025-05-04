@@ -4,13 +4,21 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { AuthProvider, AuthContext } from './context/AuthContext';
+import { ThemeProvider, ThemeContext } from './context/ThemeContext';
+import { PostModalProvider } from './context/PostModalContext';
 
-import Login from './components/login';
-import Register from './components/Register';
-import Home from './components/Home';
+import Login from './pages/login';
+import Register from './pages/register';
+import Home from './pages/Home';
 import MainLayout from './components/MainLayout';
-import Profile from './components/Profile';
-import NotFound from './components/NotFound'; // 👈 Import it
+import Profile from './pages/Profile';
+import Settings from './pages/Settings';
+import NotFound from './components/NotFound';
+import Post from './components/post';
+import ForgetPassword from './components/ForgetPassword';
+import ResetPassword from './pages/ResetPassword';
+import ImageUploadTest from './pages/ImageUploadTest';
+import Search from './pages/Search'
 
 const RequireAuth = ({ children }) => {
   const { user, loading } = useContext(AuthContext);
@@ -34,30 +42,61 @@ const browserRouter = createBrowserRouter([
         <MainLayout />
       </RequireAuth>
     ),
-    errorElement: <NotFound />, 
+    errorElement: <NotFound />,
     children: [
       {
-        path: '/',
-        element: <Home />,
+        index: true,
+        element: <Home />
       },
       {
-        path: '/profile',
+        path: 'profile/:userId',
         element: <Profile />,
       },
-    ],
+      {
+        path: 'profile',
+        element: <Profile />,
+      },
+      
+      {
+        path: 'settings',
+        element: <Settings />
+      },
+      {
+        path: 'post',
+        element: <Post />
+      },
+      {
+        path: 'upload-test',
+        element: <ImageUploadTest />
+      },
+      {
+        path: 'search',
+        element: <Search />
+      }
+    ]    
   },
   {
     path: '/login',
     element: <Login />,
-    errorElement: <NotFound />, 
+    errorElement: <NotFound />,
   },
   {
     path: '/register',
     element: <Register />,
-    errorElement: <NotFound />, 
+    errorElement: <NotFound />,
   },
   {
-    path: '*', // catch-all for any unmatched routes
+    path: '/forget-password',
+    element: <ForgetPassword />,
+    errorElement: <NotFound />,
+  },
+  {
+    path: '/reset-password/:token',
+    element: <ResetPassword />,
+    errorElement: <NotFound />,
+  },
+  {
+    path: '*',
     element: <NotFound />,
   },
 ]);
@@ -65,17 +104,21 @@ const browserRouter = createBrowserRouter([
 const App = () => {
   return (
     <AuthProvider>
-      <RouterProvider router={browserRouter} />
-      <ToastContainer 
-        position="bottom-right" 
-        autoClose={3000} 
-        hideProgressBar={false} 
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        draggable
-        theme="dark"
-      />
+      <ThemeProvider>
+        <PostModalProvider>
+          <RouterProvider router={browserRouter} />
+          <ToastContainer
+            position="bottom-right"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            draggable
+            theme="dark"
+          />
+        </PostModalProvider>
+      </ThemeProvider>
     </AuthProvider>
   );
 };

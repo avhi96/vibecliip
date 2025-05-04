@@ -34,8 +34,8 @@ const Login = () => {
 
       if (res.data.success) {
         toast.success(res.data.message);
-        login(res.data.user); // update auth context
-        navigate('/'); 
+        login(res.data.user, res.data.token); // Pass token to login function
+        navigate('/', { replace: true }); 
       }
     } catch (error) {
       console.log(error);
@@ -47,6 +47,16 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    // TODO: Implement Google login flow
+    toast.info('Google login not implemented yet.');
+  };
+
+  const handleFacebookLogin = () => {
+    // TODO: Implement Facebook login flow
+    toast.info('Facebook login not implemented yet.');
   };
 
   return (
@@ -101,9 +111,14 @@ const Login = () => {
                 className="mr-2"
                 checked={showPassword}
                 onChange={() => setShowPassword(!showPassword)}
-
               />
               <label htmlFor="show-password" className="text-[#FFA500]">Show Password</label>
+            </div>
+
+            <div className="mb-4 text-right">
+              <Link to="/forget-password" className="text-sm text-sky-600 hover:underline">
+                Forgot Password?
+              </Link>
             </div>
 
             <button
@@ -114,11 +129,28 @@ const Login = () => {
             >
               {loading ? 'Logging in...' : 'Login'}
             </button>
-
           </form>
 
+          <div className='mt-6 flex flex-col items-center justify-center text-[#FFA500]'>
+            <div>Or login with</div>
+            <div className='flex gap-4 mt-2'>
+              <button
+                onClick={handleGoogleLogin}
+                className='bg-red-600 px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition duration-300'
+              >
+                Google
+              </button>
+              <button
+                onClick={handleFacebookLogin}
+                className='bg-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition duration-300'
+              >
+                Facebook
+              </button>
+            </div>
+          </div>
+
           <div className='mt-6 flex items-center justify-center text-[#FFA500]'>
-            Doesn't have an account?
+            Don't have an account?
             <Link to='/register' className='text-sky-600 hover:underline ml-2'>
               Register
             </Link>

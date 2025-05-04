@@ -12,7 +12,7 @@
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.4",
     "axios": "^1.8.4",
-    "dialog": "^0.3.1",
+    "firebase": "^11.6.1",
     "lucide-react": "^0.488.0",
     "prop-types": "^15.8.1",
     "react": "^18.3.1",
