@@ -1,4 +1,23 @@
-import { User } from "../models/user.model.js";
+import { User } from '../models/user.model.js';
+import { Post } from "../models/post.model.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import getDataUri from '../utils/datauri.js';
+import cloudinary from '../utils/cloudinary.js';
+import crypto from 'crypto';
+import nodemailer from 'nodemailer';
+import admin from 'firebase-admin';
+import mongoose from 'mongoose';
+
+const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
+    secure: process.env.SMTP_SECURE === 'false', // true for 465, false for other ports
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+    },
+});
 
 export const getCurrentUser = async (req, res) => {
   try {
@@ -29,25 +48,7 @@ export const getCurrentUser = async (req, res) => {
       success: false,
     });
   }
-};
-import { Post } from "../models/post.model.js";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import getDataUri from '../utils/datauri.js';
-import cloudinary from '../utils/cloudinary.js';
-import crypto from 'crypto';
-import nodemailer from 'nodemailer';
-
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: process.env.SMTP_SECURE === 'false', // true for 465, false for other ports
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
-});
-
+}; 
 export const register = async (req, res) => {
     try {
         const { username, email, password } = req.body;
@@ -78,9 +79,6 @@ export const register = async (req, res) => {
         console.log(error);
     }
 }
-
-import admin from 'firebase-admin';
-
 export const login = async (req, res) => {
   try {
     const { email, password, idToken } = req.body;
@@ -195,49 +193,71 @@ export const login = async (req, res) => {
   }
 };
 
-export const logout = async (_, res) => {
-    try {
-        // Clear refresh token cookie on logout
-        res.clearCookie('refreshToken', {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-        });
-        return res.json({
-            message: 'Logged out successfully.',
-            success: true
-        });
-    } catch (error) {
-        console.log(error);
-    }
+export const logout = async (req, res) => {
+  try {
+      // Clear refresh token cookie on logout
+      res.clearCookie('refreshToken', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/', // Ensure path is set to root to clear cookie properly
+      });
+      return res.json({
+          message: 'Logged out successfully.',
+          success: true
+      });
+  } catch (error) {
+      console.error('Logout error:', error);
+      return res.status(500).json({
+          message: 'Server error during logout',
+          success: false
+      });
+  }
 };
 
 export const getProfile = async (req, res) => {
-    try {
-        const userId = req.params.id;
-        if (!userId) {
-            return res.status(400).json({
-                message: "User ID is required.",
-                success: false
-            });
-        }
+  try {
+      let userId = req.params.id;
+      if (!userId) {
+          // Fix: if no id param, use authenticated user id
+          userId = req.id;
+      }
 
-        let user = await User.findById(userId).populate({ path: 'posts', options: { sort: { createdAt: -1 } } }).populate('bookmarks').select('-password');
+      // Handle special case where id param is "me"
+      if (userId === "me") {
+        userId = req.id;
+      }
 
-        if (!user) {
-            return res.status(404).json({
-                message: "User not found.",
-                success: false
-            });
-        }
-        return res.status(200).json({
-            user,
-            success: true
+      // Prevent invalid ObjectId cast error for unexpected strings like "logout"
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({
+          message: "Invalid user ID.",
+          success: false
         });
-    } catch (error) {
-        console.log(error);
-    }
+      }
+
+      let user = await User.findById(userId).populate({ path: 'posts', options: { sort: { createdAt: -1 } } }).populate('bookmarks').select('-password');
+
+      if (!user) {
+          return res.status(404).json({
+              message: "User not found.",
+              success: false
+          });
+      }
+      return res.status(200).json({
+          user,
+          success: true
+      });
+  } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        message: "Server error",
+        success: false
+      });
+  }
 };
+
+
 
 export const editProfile = async (req, res) => {
     try {
@@ -435,4 +455,18 @@ export const requestPasswordReset = async (req, res) => {
       return res.status(500).json({ message: "Server error", success: false });
     }
   };
-  
+
+export const searchUsers = async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) {
+      return res.status(400).json({ success: false, message: 'Username query parameter is required' });
+    }
+    const regex = new RegExp(username, 'i'); // case-insensitive regex
+    const users = await User.find({ username: { $regex: regex } }).select('username avatar profilePicture');
+    res.json({ success: true, users });
+  } catch (error) {
+    console.error('Error searching users:', error);
+    res.status(500).json({ success: false, message: 'Server error searching users' });
+  }
+};
