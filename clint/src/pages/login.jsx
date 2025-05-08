@@ -7,7 +7,7 @@ import { auth, googleProvider } from '../firebase';
 import { signInWithPopup } from 'firebase/auth';
 import { ThemeContext } from '../context/ThemeContext';
 
-const API_BASE_URL = 'https://vibecliip.onrender.com';
+const API_BASE_URL = 'https://vibecliip.onrender.com/api/v1';
 
 const Login = () => {
   const navigate = useNavigate();
