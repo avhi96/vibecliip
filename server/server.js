@@ -19,28 +19,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: './server/.env' });
+
+// Initialize Firebase Admin SDK
+const serviceAccount = JSON.parse(fs.readFileSync(path.join(__dirname, 'firebase-service-account.json'), 'utf8'));
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
 const app = express();
-
-let serviceAccount;
-if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-  try {
-    serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf-8'));
-  } catch (error) {
-    console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT environment variable:', error);
-    process.exit(1);
-  }
-} else {
-  console.warn('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
-  serviceAccount = null;
-}
-
-if (serviceAccount) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-} else {
-  admin.initializeApp();
-}
 
 const PORT = process.env.PORT || 8000;
 
