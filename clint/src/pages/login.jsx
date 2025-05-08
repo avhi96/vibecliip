@@ -29,7 +29,7 @@ const Login = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      const res = await axios.post('http://localhost:8000/api/v1/auth/login', input, {
+      const res = await axios.post('https://vibecliip.onrender.com/api/v1/auth/login', input, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -59,7 +59,7 @@ const Login = () => {
       const user = result.user;
       const idToken = await user.getIdToken();
 
-      const res = await axios.post('http://localhost:8000/api/v1/auth/login', { idToken }, {
+      const res = await axios.post('https://vibecliip.onrender.com/api/v1/auth/login', { idToken }, {
         headers: {
           'Content-Type': 'application/json',
         },
