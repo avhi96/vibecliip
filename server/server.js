@@ -18,9 +18,6 @@ import notificationRoute from './routes/notification.route.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const serviceAccountPath = path.resolve('./firebase-service-account.json');
-const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-
 dotenv.config({ path: './server/.env' });
 const app = express();
 
@@ -36,7 +33,7 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 const corsOptions = {
-    origin: 'https://your-frontend-url.vercel.app',  // Replace with your actual frontend URL after deployment
+    origin: 'https://vibecliip.vercel.app',  // Replace with your actual frontend URL after deployment
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
