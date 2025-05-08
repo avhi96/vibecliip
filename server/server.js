@@ -21,6 +21,14 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: './server/.env' });
 const app = express();
 
+let serviceAccount;
+try {
+  serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf-8'));
+} catch (error) {
+  console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT environment variable:', error);
+  process.exit(1);
+}
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
@@ -52,10 +60,6 @@ app.get("/", (req, res) => {
 
 app.use(cors(corsOptions));
 
-app.use(cors({
-  origin: 'http://localhost:5173',
-  credentials: true
-}));
 
 // api routes
 app.use("/api/v1/user", userRoute);
