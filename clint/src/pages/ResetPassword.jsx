@@ -13,7 +13,7 @@ const ResetPassword = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      const res = await axios.post(`http://localhost:8000/api/v1/user/reset-password/${token}`, { newPassword });
+      const res = await axios.post(`https://vibecliip.onrender.com/api/v1/user/reset-password/${token}`, { newPassword });
       if (res.data.success) {
         toast.success(res.data.message);
         navigate('/login');

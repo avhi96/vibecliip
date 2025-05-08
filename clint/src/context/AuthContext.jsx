@@ -32,7 +32,7 @@ const AuthProvider = ({ children }) => {
       if (error.response && error.response.status === 401 && !originalRequest._retry) {
         originalRequest._retry = true;
         try {
-          const res = await axios.post('https://your-backend-url/api/v1/auth/refresh-token', {}, { withCredentials: true });
+          const res = await axios.post('https://vibecliip.onrender.com/api/v1/auth/refresh-token', {}, { withCredentials: true });
           if (res.data.success) {
             localStorage.setItem('token', res.data.token);
             axiosInstance.defaults.headers.common['Authorization'] = 'Bearer ' + res.data.token;
@@ -44,7 +44,7 @@ const AuthProvider = ({ children }) => {
           setLoading(false);
           localStorage.removeItem('token');
           // Call backend logout API to clear refresh token cookie
-          await axios.get('https://your-backend-url/api/v1/auth/logout', { withCredentials: true });
+          await axios.get('https://vibecliip.onrender.com/api/v1/auth/logout', { withCredentials: true });
           window.location.href = '/login';
           return Promise.reject(refreshError);
         }
@@ -121,7 +121,7 @@ const AuthProvider = ({ children }) => {
     setUser(null);
     setFollowedUserIds([]);
     // Call backend logout API to clear refresh token cookie
-    await axios.get('https://your-backend-url/api/v1/auth/logout', { withCredentials: true });
+    await axios.get('https://vibecliip.onrender.com/api/v1/auth/logout', { withCredentials: true });
   };
 
   return (
