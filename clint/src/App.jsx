@@ -4,8 +4,9 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { AuthProvider, AuthContext } from './context/AuthContext';
-import { ThemeProvider, ThemeContext } from './context/ThemeContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { PostModalProvider } from './context/PostModalContext';
+import { PostsProvider } from './context/PostsContext';
 
 import Login from './pages/login';
 import Register from './pages/register';
@@ -17,8 +18,9 @@ import NotFound from './components/NotFound';
 import Post from './components/post';
 import ForgetPassword from './components/ForgetPassword';
 import ResetPassword from './pages/ResetPassword';
-import ImageUploadTest from './pages/ImageUploadTest';
-import Search from './pages/Search'
+import Search from './pages/Search';
+import Messages from './components/Messages';
+import CreatePost from './pages/CreatePost';
 
 const RequireAuth = ({ children }) => {
   const { user, loading } = useContext(AuthContext);
@@ -44,61 +46,21 @@ const browserRouter = createBrowserRouter([
     ),
     errorElement: <NotFound />,
     children: [
-      {
-        index: true,
-        element: <Home />
-      },
-      {
-        path: 'profile/:userId',
-        element: <Profile />,
-      },
-      {
-        path: 'profile',
-        element: <Profile />,
-      },
-      
-      {
-        path: 'settings',
-        element: <Settings />
-      },
-      {
-        path: 'post',
-        element: <Post />
-      },
-      {
-        path: 'upload-test',
-        element: <ImageUploadTest />
-      },
-      {
-        path: 'search',
-        element: <Search />
-      }
-    ]    
+      { index: true, element: <Home /> },
+      { path: 'profile/:userId', element: <Profile /> },
+      { path: 'profile', element: <Profile /> },
+      { path: 'messages', element: <Messages /> },
+      { path: 'settings', element: <Settings /> },
+      { path: 'post', element: <Post /> },
+      { path: 'search', element: <Search /> },
+      { path: 'create-post', element: <CreatePost /> }
+    ]
   },
-  {
-    path: '/login',
-    element: <Login />,
-    errorElement: <NotFound />,
-  },
-  {
-    path: '/register',
-    element: <Register />,
-    errorElement: <NotFound />,
-  },
-  {
-    path: '/forget-password',
-    element: <ForgetPassword />,
-    errorElement: <NotFound />,
-  },
-  {
-    path: '/reset-password/:token',
-    element: <ResetPassword />,
-    errorElement: <NotFound />,
-  },
-  {
-    path: '*',
-    element: <NotFound />,
-  },
+  { path: '/login', element: <Login />, errorElement: <NotFound /> },
+  { path: '/register', element: <Register />, errorElement: <NotFound /> },
+  { path: '/forget-password', element: <ForgetPassword />, errorElement: <NotFound /> },
+  { path: '/reset-password/:token', element: <ResetPassword />, errorElement: <NotFound /> },
+  { path: '*', element: <NotFound /> }
 ]);
 
 const App = () => {
@@ -106,17 +68,19 @@ const App = () => {
     <AuthProvider>
       <ThemeProvider>
         <PostModalProvider>
-          <RouterProvider router={browserRouter} />
-          <ToastContainer
-            position="bottom-right"
-            autoClose={3000}
-            hideProgressBar={false}
-            newestOnTop={false}
-            closeOnClick
-            rtl={false}
-            draggable
-            theme="dark"
-          />
+          <PostsProvider>
+            <RouterProvider router={browserRouter} />
+            <ToastContainer
+              position="bottom-right"
+              autoClose={3000}
+              hideProgressBar={false}
+              newestOnTop={false}
+              closeOnClick
+              rtl={false}
+              draggable
+              theme="dark"
+            />
+          </PostsProvider>
         </PostModalProvider>
       </ThemeProvider>
     </AuthProvider>

@@ -1,118 +1,129 @@
-import React, { useState, useContext, useRef } from 'react';
-
+import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { toast } from 'react-toastify';
 
 const PostModal = ({ isOpen, onClose }) => {
   const { axiosInstance } = useContext(AuthContext);
-  const [caption, setCaption] = useState('');
   const [title, setTitle] = useState('');
-  const [image, setImage] = useState(null);
-  const fileInputRef = useRef(null);
-
+  const [caption, setCaption] = useState('');
+  const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   if (!isOpen) return null;
 
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
-      setImage(e.target.files[0]);
-    }
-  };
-
-  const handleBoxClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
+      setImageFile(e.target.files[0]);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!image) {
-      toast.error('Please select an image to upload.');
+    if (!imageFile) {
+      setError('Please select an image.');
       return;
     }
     setLoading(true);
+    setError(null);
     try {
       const formData = new FormData();
       formData.append('title', title);
       formData.append('caption', caption);
-      formData.append('postImage', image);
+      formData.append('postImage', imageFile);
 
-      const res = await axiosInstance.post('/post/addpost', formData, {
-
+      const response = await axiosInstance.post('/post/addpost', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        withCredentials: true,
       });
 
-      if (res.data.success) {
-        toast.success('Post uploaded successfully!');
+      if (response.data && response.data.success) {
+        setTitle('');
         setCaption('');
-        setImage(null);
+        setImageFile(null);
         onClose();
       } else {
-        toast.error(res.data.message || 'Failed to upload post.');
+        setError(response.data.message || 'Failed to create post.');
       }
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error(error.response?.data?.message || 'An error occurred during upload.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error creating post.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-      <div className="bg-gray-900 text-yellow-400 rounded-lg p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold mb-4">Create a New Post</h2>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      backgroundColor: 'rgba(0,0,0,0.7)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 9999,
+      color: 'white',
+      fontSize: '16px',
+    }}>
+      <div style={{
+        backgroundColor: '#222',
+        padding: '20px',
+        borderRadius: '8px',
+        minWidth: '320px',
+        maxWidth: '90%',
+        textAlign: 'center',
+      }}>
+        <h2 style={{ marginBottom: '10px' }}>Create New Post</h2>
+        <form onSubmit={handleSubmit}>
           <input
             type="text"
             placeholder="Title"
-            
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="p-2 rounded bg-gray-800 text-yellow-400 focus:outline-none"
+            style={{ width: '100%', padding: '8px', marginBottom: '10px', borderRadius: '4px', border: 'none' }}
           />
-
-          <div
-            onClick={handleBoxClick}
-            className="border-2 border-yellow-400 rounded-lg p-10 text-center cursor-pointer hover:bg-yellow-500 hover:text-gray-900 transition"
-          >
-            {image ? (
-              <img
-                src={URL.createObjectURL(image)}
-                alt="Selected"
-                className="mx-auto max-h-48 object-contain"
-              />
-            ) : (
-              <p>Click here to upload an image</p>
-            )}
-          </div>
+          <textarea
+            placeholder="Caption"
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            rows={3}
+            style={{ width: '100%', padding: '8px', marginBottom: '10px', borderRadius: '4px', border: 'none', resize: 'vertical' }}
+          />
           <input
             type="file"
             accept="image/*"
             onChange={handleImageChange}
-            ref={fileInputRef}
-            className="hidden"
+            style={{ marginBottom: '10px' }}
           />
-
-          <div className="flex justify-end gap-4">
+          {error && <p style={{ color: 'red', marginBottom: '10px' }}>{error}</p>}
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 transition"
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#555',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
+              disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#fbbf24',
+                color: 'black',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
               disabled={loading}
-              className="bg-yellow-400 text-gray-900 px-4 py-2 rounded font-semibold hover:bg-yellow-500 transition"
             >
-              {loading ? 'Uploading...' : 'Upload'}
+              {loading ? 'Posting...' : 'Post'}
             </button>
           </div>
         </form>

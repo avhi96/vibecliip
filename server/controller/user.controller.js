@@ -8,11 +8,12 @@ import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import admin from 'firebase-admin';
 import mongoose from 'mongoose';
+import Notification from '../models/notification.model.js';
 
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: process.env.SMTP_SECURE === 'false', // true for 465, false for other ports
+    port: Number(process.env.SMTP_PORT),
+    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -49,6 +50,7 @@ export const getCurrentUser = async (req, res) => {
     });
   }
 }; 
+
 export const register = async (req, res) => {
     try {
         const { username, email, password } = req.body;
@@ -79,6 +81,7 @@ export const register = async (req, res) => {
         console.log(error);
     }
 }
+
 export const login = async (req, res) => {
   try {
     const { email, password, idToken } = req.body;
@@ -93,10 +96,13 @@ export const login = async (req, res) => {
 
       if (!user) {
         // Create new user if not exists
+        const randomPassword = crypto.randomBytes(16).toString('hex');
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
         user = await User.create({
           username: firebaseEmail.split('@')[0],
           email: firebaseEmail,
-          password: '', // no password for social login
+          password: hashedPassword,
         });
       }
 
@@ -110,7 +116,7 @@ export const login = async (req, res) => {
       // Set refresh token in httpOnly cookie
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.NODE_ENV === 'production', // set false in development
         sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
@@ -175,7 +181,7 @@ export const login = async (req, res) => {
       // Set refresh token in httpOnly cookie
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.NODE_ENV === 'production', // set false in development
         sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
@@ -193,280 +199,200 @@ export const login = async (req, res) => {
   }
 };
 
-export const logout = async (req, res) => {
+
+export const editProfile = async (req, res) => {
   try {
-      // Clear refresh token cookie on logout
-      res.clearCookie('refreshToken', {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/', // Ensure path is set to root to clear cookie properly
+      const userId = req.id;
+      const { bio, gender } = req.body;
+      const profilePicture = req.file;
+      let cloudResponse;
+
+      if (profilePicture) {
+          const fileUri = getDataUri(profilePicture);
+          cloudResponse = await cloudinary.uploader.upload(fileUri);
+      }
+
+      const user = await User.findById(userId).select('-password');
+      if (!user) {
+          return res.status(404).json({
+              message: 'User not found.',
+              success: false
+          });
+      };
+      if (bio) user.bio = bio;
+      if (gender) user.gender = gender;
+      if (profilePicture) user.profilePicture = cloudResponse.secure_url;
+
+      await user.save();
+
+      return res.status(200).json({
+          message: 'Profile updated.',
+          success: true,
+          user
       });
-      return res.json({
+
+  } catch (error) {
+      console.log(error);
+  }
+};
+
+
+export const requestPasswordReset = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({
+        message: "Email is required.",
+        success: false,
+      });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        message: "User with this email does not exist.",
+        success: false,
+      });
+    }
+
+    // Generate reset token and expiration
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = Date.now() + 3600000; // 1 hour from now
+
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = resetTokenExpiry;
+    await user.save();
+
+    // Send reset email
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    const mailOptions = {
+      from: process.env.SMTP_USER,
+      to: user.email,
+      subject: 'Password Reset Request',
+      html: `<p>You requested a password reset. Click <a href="${resetUrl}">here</a> to reset your password. This link is valid for 1 hour.</p>`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return res.status(200).json({
+      message: "Password reset email sent.",
+      success: true,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Server error",
+      success: false,
+    });
+  }
+};
+
+export const searchUsers = async (req, res) => {
+  try {
+    const { query } = req.query;
+    if (!query) {
+      return res.status(400).json({
+        message: "Search query is required.",
+        success: false,
+      });
+    }
+
+    // Search users by username or email containing the query string (case-insensitive)
+    const users = await User.find({
+      $or: [
+        { username: { $regex: query, $options: "i" } },
+        { email: { $regex: query, $options: "i" } },
+      ],
+    }).select("-password");
+
+    return res.status(200).json({
+      success: true,
+      users,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Server error",
+      success: false,
+    });
+  }
+};
+export const logout = async (_, res) => {
+  try {
+      return res.cookie("refreshToken", "", { maxAge: 0, httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' }).json({
           message: 'Logged out successfully.',
           success: true
       });
   } catch (error) {
-      console.error('Logout error:', error);
-      return res.status(500).json({
-          message: 'Server error during logout',
-          success: false
-      });
+      console.log(error);
   }
 };
-
 export const getProfile = async (req, res) => {
   try {
-      let userId = req.params.id;
-      if (!userId) {
-          // Fix: if no id param, use authenticated user id
-          userId = req.id;
-      }
-
-      // Handle special case where id param is "me"
-      if (userId === "me") {
-        userId = req.id;
-      }
-
-      // Prevent invalid ObjectId cast error for unexpected strings like "logout"
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        return res.status(400).json({
-          message: "Invalid user ID.",
-          success: false
-        });
-      }
-
-      let user = await User.findById(userId).populate({ path: 'posts', options: { sort: { createdAt: -1 } } }).populate('bookmarks').select('-password');
-
-      if (!user) {
-          return res.status(404).json({
-              message: "User not found.",
-              success: false
-          });
-      }
+      const userId = req.params.id;
+      let user = await User.findById(userId).populate({path:'posts', createdAt:-1}).populate('bookmarks');
       return res.status(200).json({
           user,
           success: true
       });
   } catch (error) {
       console.log(error);
-      return res.status(500).json({
-        message: "Server error",
-        success: false
-      });
   }
 };
-
-
-
-export const editProfile = async (req, res) => {
-    try {
-        const userId = req.id;
-        const { bio, gender } = req.body;
-        const profilePicture = req.file;
-        let cloudResponse;
-
-        if (profilePicture) {
-            const fileUri = getDataUri(profilePicture);
-            cloudResponse = await cloudinary.uploader.upload(fileUri);
-        }
-
-        const user = await User.findById(userId).select('-password');
-        if (!user) {
-            return res.status(404).json({
-                message: 'User not found.',
-                success: false
-            });
-        }
-        if (bio) user.bio = bio;
-        if (gender) user.gender = gender;
-        if (profilePicture) user.profilePicture = cloudResponse.secure_url;
-
-        await user.save();
-
-        return res.status(200).json({
-            message: 'Profile updated.',
-            success: true,
-            user
-        });
-
-    } catch (error) {
-        console.log(error);
-    }
-};
-
 export const getSuggestedUsers = async (req, res) => {
-    try {
-        const suggestedUsers = await User.find({ _id: { $ne: req.id } }).select("-password");
-        if (!suggestedUsers) {
-            return res.status(400).json({
-                message: 'Currently do not have any users',
-            })
-        }
-        return res.status(200).json({
-            success: true,
-            users: suggestedUsers
-        })
-    } catch (error) {
-        console.log(error);
-    }
+  try {
+      const suggestedUsers = await User.find({ _id: { $ne: req.id } }).select("-password");
+      if (!suggestedUsers) {
+          return res.status(400).json({
+              message: 'Currently do not have any users',
+          })
+      };
+      return res.status(200).json({
+          success: true,
+          users: suggestedUsers
+      })
+  } catch (error) {
+      console.log(error);
+  }
 };
-
 export const followOrUnfollow = async (req, res) => {
   try {
-    const currentUserId = req.id; // logged-in user
-    const targetUserId = req.params.id; // user to follow/unfollow
+      const followKrneWala = req.id; // patel
+      const jiskoFollowKrunga = req.params.id; // shivani
+      if (followKrneWala === jiskoFollowKrunga) {
+          return res.status(400).json({
+              message: 'You cannot follow/unfollow yourself',
+              success: false
+          });
+      }
 
-    if (currentUserId === targetUserId) {
-      return res.status(400).json({
-        message: 'You cannot follow/unfollow yourself',
-        success: false,
-      });
-    }
+      const user = await User.findById(followKrneWala);
+      const targetUser = await User.findById(jiskoFollowKrunga);
 
-    const currentUser = await User.findById(currentUserId);
-    const targetUser = await User.findById(targetUserId);
-
-    if (!currentUser || !targetUser) {
-      return res.status(404).json({
-        message: 'User not found',
-        success: false,
-      });
-    }
-
-    const isFollowing = currentUser.following.some(
-      (id) => id.toString() === targetUserId
-    );
-
-    if (isFollowing) {
-      // Unfollow
-      currentUser.following = currentUser.following.filter(
-        (id) => id.toString() !== targetUserId
-      );
-      targetUser.followers = targetUser.followers.filter(
-        (id) => id.toString() !== currentUserId
-      );
-      await currentUser.save();
-      await targetUser.save();
-
-      return res.status(200).json({
-        message: 'Unfollowed successfully',
-        success: true,
-      });
-    } else {
-      // Follow
-      currentUser.following.push(targetUserId);
-      targetUser.followers.push(currentUserId);
-      await currentUser.save();
-      await targetUser.save();
-
-      return res.status(200).json({
-        message: 'Followed successfully',
-        success: true,
-      });
-    }
+      if (!user || !targetUser) {
+          return res.status(400).json({
+              message: 'User not found',
+              success: false
+          });
+      }
+      // mai check krunga ki follow krna hai ya unfollow
+      const isFollowing = user.following.includes(jiskoFollowKrunga);
+      if (isFollowing) {
+          // unfollow logic ayega
+          await Promise.all([
+              User.updateOne({ _id: followKrneWala }, { $pull: { following: jiskoFollowKrunga } }),
+              User.updateOne({ _id: jiskoFollowKrunga }, { $pull: { followers: followKrneWala } }),
+          ])
+          return res.status(200).json({ message: 'Unfollowed successfully', success: true });
+      } else {
+          // follow logic ayega
+          await Promise.all([
+              User.updateOne({ _id: followKrneWala }, { $push: { following: jiskoFollowKrunga } }),
+              User.updateOne({ _id: jiskoFollowKrunga }, { $push: { followers: followKrneWala } }),
+          ])
+          return res.status(200).json({ message: 'followed successfully', success: true });
+      }
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      message: 'Server error',
-      success: false,
-    });
+      console.log(error);
   }
-};
-
-// REQUEST PASSWORD RESET
-export const requestPasswordReset = async (req, res) => {
-    try {
-      const { email } = req.body;
-      if (!email) {
-        return res.status(400).json({ message: "Email is required", success: false });
-      }
-  
-      const user = await User.findOne({ email });
-      if (!user) {
-        console.log(`Password reset requested for non-existent email: ${email}`);
-        return res.status(404).json({ message: "User with this email does not exist", success: false });
-      }
-  
-      const resetToken = crypto.randomBytes(32).toString("hex");
-      const resetTokenExpiry = Date.now() + 1000 * 60 * 15; // 15 minutes from now
-  
-      user.resetToken = resetToken;
-      user.resetTokenExpiry = resetTokenExpiry;
-      await user.save();
-  
-      const resetLink = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
-  
-      // Send email with nodemailer
-      const mailOptions = {
-        from: process.env.SMTP_USER,
-        to: user.email,
-        subject: 'Password Reset Request',
-        html: `<p>You requested a password reset. Click the link below to reset your password:</p>
-               <a href="${resetLink}">${resetLink}</a>
-               <p>This link will expire in 15 minutes.</p>`
-      };
-  
-      await transporter.sendMail(mailOptions);
-  
-      return res.status(200).json({
-        message: "Password reset link sent to your email",
-        success: true,
-      });
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({ message: "Server error", success: false });
-    }
-  };
-  
-  // RESET PASSWORD
-  export const resetPassword = async (req, res) => {
-    try {
-      const { token } = req.params;
-      const { newPassword } = req.body;
-  
-      const user = await User.findOne({
-        resetToken: token,
-        resetTokenExpiry: { $gt: Date.now() }
-      });
-  
-      if (!user) {
-        return res.status(400).json({ message: "Invalid or expired token", success: false });
-      }
-
-      // Check if new password is same as current password
-      const isSamePassword = await bcrypt.compare(newPassword, user.password);
-      if (isSamePassword) {
-        return res.status(400).json({ message: "New password cannot be the same as the current password", success: false });
-      }
-  
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      user.password = hashedPassword;
-      user.resetToken = undefined;
-      user.resetTokenExpiry = undefined;
-      await user.save();
-  
-      return res.status(200).json({
-        message: "Password has been reset successfully",
-        success: true
-      });
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({ message: "Server error", success: false });
-    }
-  };
-
-export const searchUsers = async (req, res) => {
-  try {
-    const { username } = req.query;
-    if (!username) {
-      return res.status(400).json({ success: false, message: 'Username query parameter is required' });
-    }
-    const regex = new RegExp(username, 'i'); // case-insensitive regex
-    const users = await User.find({ username: { $regex: regex } }).select('username avatar profilePicture');
-    res.json({ success: true, users });
-  } catch (error) {
-    console.error('Error searching users:', error);
-    res.status(500).json({ success: false, message: 'Server error searching users' });
-  }
-};
+}

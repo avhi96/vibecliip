@@ -11,6 +11,9 @@ import admin from 'firebase-admin';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import http from 'http';
+import { Server } from 'socket.io';
+import notificationRoute from './routes/notification.route.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,7 +28,7 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8000;
 
 // Middleware
 app.use(express.json());
@@ -34,7 +37,12 @@ app.use(express.urlencoded({ extended: true }));
 
 const corsOptions = {
     origin: 'http://localhost:5173',
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Authorization'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204
 };
 
 // Routes
@@ -52,8 +60,44 @@ app.use("/api/v1/user", userRoute);
 app.use("/api/v1/post", postRoute);
 app.use("/api/v1/message", messageRoute);
 app.use("/api/v1/auth", authRoute);
+app.use("/api/v1", notificationRoute);
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
+//socket io
+
+io.on('connection', (socket) => {
+  console.log('a user connected:', socket.id);
+
+  socket.on('join', (userId) => {
+    socket.join(userId);
+    console.log(`User ${userId} joined room ${userId}`);
+  });
+
+  socket.on('sendMessage', (message) => {
+    const receiverId = message.receiverId;
+    const senderId = message.senderId;
+    io.to(receiverId).emit('message', message);
+    if (senderId !== receiverId) {
+      io.to(senderId).emit('message', message);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('user disconnected:', socket.id);
+  });
+});
+
+server.listen(PORT, () => {
     connectDB();
     console.log(`Server is running on port ${PORT}`);
 });
+
+export { io };

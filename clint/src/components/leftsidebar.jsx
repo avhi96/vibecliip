@@ -1,20 +1,19 @@
 import React, { useContext } from 'react'
 import {
   Heart, Home, MessageCircle,
-  Search, TrendingUp, PlusSquare, LogOut, Sun, Moon
+  Search, TrendingUp, PlusSquare, LogOut
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@radix-ui/react-avatar'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-toastify'
-import { ThemeContext } from '../context/ThemeContext'
 import { AuthContext } from '../context/AuthContext'
+import { ThemeContext } from '../context/ThemeContext'
 
-const LeftSidebar = ({ onSelect, openPostModal }) => {
-  console.log('LeftSidebar openPostModal prop:', openPostModal, 'type:', typeof openPostModal)
+const LeftSidebar = ({ onSelect }) => {
   const navigate = useNavigate()
-  const { darkMode, toggleTheme } = useContext(ThemeContext)
   const { user } = useContext(AuthContext)
+  const { darkMode } = useContext(ThemeContext)
 
   const logoutHandler = async () => {
     try {
@@ -32,20 +31,20 @@ const LeftSidebar = ({ onSelect, openPostModal }) => {
 
   const baseClass = 'flex items-center gap-4 relative cursor-pointer rounded-lg p-3 my-3 transition'
   const hoverClass = darkMode ? 'hover:bg-yellow-700 text-yellow-400' : 'hover:bg-yellow-300 text-yellow-700'
-  const containerClass = darkMode ? 'fixed top-0 z-10 left-0 px-4 border-r border-yellow-400 w-[16%] h-screen bg-gray-900 flex flex-col justify-between overflow-y-auto' : 'fixed top-0 z-10 left-0 px-4 border-r border-gray-300 w-[16%] h-screen bg-white flex flex-col justify-between overflow-y-auto'
+  const containerClass = `fixed top-0 z-10 left-0 px-4 border-r ${darkMode ? 'border-yellow-400 bg-gray-900 text-yellow-400' : 'border-gray-300 bg-white text-yellow-700'} w-[16%] h-screen flex flex-col justify-between overflow-y-auto`
+
+  const handleSelect = (content) => {
+    if (typeof onSelect === 'function') {
+      onSelect(content)
+    }
+  }
 
   return (
     <div className={containerClass}>
       <div>
         <div className="flex items-center justify-around mt-4 mb-2">
-          <h1 className={`my-8 pl-3 font-bold text-2xl cursor-default ${darkMode ? 'text-yellow-400' : 'text-gray-900'}`}>VibeClip</h1>
-          <button
-            onClick={toggleTheme}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md border border-yellow-400 mx-3 hover:bg-yellow-400 hover:text-gray-900 transition ${darkMode ? 'text-yellow-400' : 'text-yellow-700'}`}
-            aria-label="Toggle theme"
-          >
-            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
+          <img src="logo.png" alt=""  className='w-24'/>
+          <h1 className={`${darkMode ? 'text-yellow-400' : 'text-yellow-700'} my-8 pr-14 font-bold text-2xl cursor-default`}>VibeClip</h1>
         </div>
         <div>
           <div
@@ -65,35 +64,31 @@ const LeftSidebar = ({ onSelect, openPostModal }) => {
             <span>Search</span>
           </div>
           <div
-            onClick={() => onSelect('explore')}
+            onClick={() => handleSelect('explore')}
             className={`${baseClass} ${hoverClass}`}
           >
             <TrendingUp />
             <span>Explore</span>
           </div>
           <div
-            onClick={() => {
-              console.log('Post button clicked')
-              if (typeof openPostModal === 'function') {
-                openPostModal()
-              } else {
-                console.error('openPostModal is not a function')
-              }
-            }}
+            onClick={() => navigate('/create-post')}
             className={`${baseClass} ${hoverClass}`}
           >
             <PlusSquare />
             <span>Post</span>
           </div>
           <div
-            onClick={() => onSelect('likes')}
+            onClick={() => handleSelect('notifications')}
             className={`${baseClass} ${hoverClass}`}
           >
             <Heart />
-            <span>Likes</span>
+            <span>Notifications</span>
           </div>
           <div
-            onClick={() => onSelect('messages')}
+            onClick={() => {
+              navigate('/messages');
+              handleSelect('messages');
+            }}
             className={`${baseClass} ${hoverClass}`}
           >
             <MessageCircle />
@@ -107,7 +102,7 @@ const LeftSidebar = ({ onSelect, openPostModal }) => {
           className={`${baseClass} ${hoverClass} flex items-center gap-4 mx-3 rounded-md justify-center cursor-pointer`}
         >
           <Avatar className='w-10 h-10'>
-            <AvatarImage src={user?.avatar || user?.profilePicture || "https://github.com/shadcn.png"} alt={user?.username || "User"} className='rounded-full w-10 h-10 object-cover' />
+            <AvatarImage src={user?.avatar || user?.profilePicture || "https://imgs.search.brave.com/mDztPWayQWWrIPAy2Hm_FNfDjDVgayj73RTnUIZ15L0/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly90NC5m/dGNkbi5uZXQvanBn/LzAyLzE1Lzg0LzQz/LzM2MF9GXzIxNTg0/NDMyNV90dFg5WWlJ/SXllYVI3TmU2RWFM/TGpNQW15NEd2UEM2/OS5qcGc"} alt={user?.username || "User"} className='rounded-full w-10 h-10 object-cover' />
             <AvatarFallback className='w-10 h-10 flex items-center justify-center rounded-full bg-yellow-400 text-black font-bold'>
               {user?.username?.[0] || "U"}
             </AvatarFallback>

@@ -3,6 +3,7 @@ import { Post } from "../models/post.model.js";
 import cloudinary from "../utils/cloudinary.js";
 import { User } from "../models/user.model.js";
 import { Comment } from "../models/comment.model.js"
+import Notification from '../models/notification.model.js';
 
 export const addNewPost = async (req, res) => {
     try {
@@ -110,6 +111,18 @@ export const addComment = async (req, res) => {
 
         await comment.populate({ path: 'author', select: 'username profilePicture' });
 
+        // Create comment notification
+        if (post.author.toString() !== authorId.toString()) {
+            const newNotification = new Notification({
+                type: 'comment',
+                fromUser: authorId,
+                toUser: post.author,
+                targetType: 'post',
+                targetId: post._id,
+            });
+            await newNotification.save();
+        }
+
         return res.status(201).json({
             message: "Comment added successfully",
             comment,
@@ -131,7 +144,7 @@ export const addComment = async (req, res) => {
 export const bookmarkPost = async (req, res) => {
     try {
         const userId = req.id;
-        const { postId } = req.params;
+        const { id: postId } = req.params;
 
         const user = await User.findById(userId);
 
@@ -142,7 +155,7 @@ export const bookmarkPost = async (req, res) => {
         const alreadyBookmarked = user.bookmarks.includes(postId);
 
         if (alreadyBookmarked) {
-            user.bookmarks = user.bookmarks.filter(id => id.toString() !== postId);
+            user.bookmarks = user.bookmarks.filter(id => id && id.toString() !== postId);
             await user.save();
             return res.status(200).json({
                 message: "Bookmark removed",
@@ -221,11 +234,30 @@ export const likePost = async (req, res) => {
 
         if (hasLiked) {
             post.likes.pull(userId); // remove like
+
+            // Remove like notification if exists
+            await Notification.deleteMany({
+                type: 'like',
+                fromUser: userId,
+                toUser: post.author,
+                targetType: 'post',
+                targetId: post._id,
+            });
         } else {
             post.likes.push(userId);
             if (hasDisliked) {
                 post.dislikes.pull(userId); // remove dislike if already disliked
             }
+
+            // Create like notification
+            const newNotification = new Notification({
+                type: 'like',
+                fromUser: userId,
+                toUser: post.author,
+                targetType: 'post',
+                targetId: post._id,
+            });
+            await newNotification.save();
         }
 
         await post.save();
@@ -245,7 +277,6 @@ export const likePost = async (req, res) => {
         });
     }
 };
-
 
 export const dislikePost = async (req, res) => {
     try {

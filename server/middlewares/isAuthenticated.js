@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 
 const isAuthenticated = async (req, res, next) => {
   try {
-    let token = req.cookies.token;
+    let token = req.cookies.refreshToken; // changed from token to refreshToken cookie
 
     // If no token in cookies, check Authorization header
     if (!token) {
@@ -19,6 +19,16 @@ const isAuthenticated = async (req, res, next) => {
         message: 'User not authenticated',
         success: false,
       });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET environment variable is not set!');
+      return res.status(500).json({
+        message: 'Server configuration error',
+        success: false,
+      });
+    } else {
+      console.log('JWT_SECRET is set');
     }
 
     const decode = await jwt.verify(token, process.env.JWT_SECRET);

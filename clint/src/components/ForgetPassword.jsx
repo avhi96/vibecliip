@@ -15,7 +15,7 @@ const ForgetPassword = () => {
       const res = await axios.post('http://localhost:8000/api/v1/user/request-password-reset', { email });
       if (res.data.success) {
         toast.success(res.data.message);
-        navigate('/reset-password');
+        navigate('/');
       } else {
         toast.error(res.data.message || 'Failed to send reset link');
       }
@@ -51,6 +51,13 @@ const ForgetPassword = () => {
           >
             {loading ? 'Sending...' : 'Send Reset Link'}
           </button>
+          <button
+          onClick={() => navigate('/login')}
+          className="mb-4 text-yellow-400 mt-5 hover:text-yellow-300 font-semibold"
+          aria-label="Back to login"
+        >
+          &larr; Back to Login
+        </button>
         </form>
       </div>
     </div>

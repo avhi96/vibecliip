@@ -20,7 +20,7 @@ const Search = () => {
     setLoading(true)
     setError(null)
     try {
-      const response = await axiosInstance.get(`/user/search?username=${encodeURIComponent(value)}`)
+      const response = await axiosInstance.get(`/user/search?query=${encodeURIComponent(value)}`)
       if (response.data && response.data.success) {
         setResults(response.data.users)
       } else {

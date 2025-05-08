@@ -1,18 +1,19 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 
 const PostModalContext = createContext();
 
 export const PostModalProvider = ({ children }) => {
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
 
-  const openPostModal = () => {
-    console.log('PostModalContext: openPostModal called');
+  const openPostModal = useCallback(() => {
+    console.log('openPostModal called');
     setIsPostModalOpen(true);
-  };
-  const closePostModal = () => {
-    console.log('PostModalContext: closePostModal called');
+  }, []);
+
+  const closePostModal = useCallback(() => {
+    console.log('closePostModal called');
     setIsPostModalOpen(false);
-  };
+  }, []);
 
   return (
     <PostModalContext.Provider value={{ isPostModalOpen, openPostModal, closePostModal }}>
@@ -23,6 +24,8 @@ export const PostModalProvider = ({ children }) => {
 
 export const usePostModal = () => {
   const context = useContext(PostModalContext);
-  console.log('usePostModal context:', context);
+  if (!context) {
+    throw new Error('usePostModal must be used within a PostModalProvider');
+  }
   return context;
 };

@@ -1,11 +1,9 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import axios from 'axios';
 
 const ProfileEdit = ({ user, onProfileUpdated }) => {
   const { axiosInstance } = useContext(AuthContext);
   const [bio, setBio] = useState(user.bio || '');
-  const [gender, setGender] = useState(user.gender || '');
   const [profilePicture, setProfilePicture] = useState(null);
   const [preview, setPreview] = useState(user.profilePicture || '');
   const [loading, setLoading] = useState(false);
@@ -33,7 +31,6 @@ const ProfileEdit = ({ user, onProfileUpdated }) => {
     try {
       const formData = new FormData();
       formData.append('bio', bio);
-      formData.append('gender', gender);
       if (profilePicture) {
         formData.append('profilePicture', profilePicture);
       }
@@ -43,8 +40,6 @@ const ProfileEdit = ({ user, onProfileUpdated }) => {
           'Content-Type': 'multipart/form-data',
         },
       });
-      
-      
 
       if (res.data.success) {
         onProfileUpdated(res.data.user);
@@ -64,6 +59,13 @@ const ProfileEdit = ({ user, onProfileUpdated }) => {
       <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-yellow-400">Edit Profile</h3>
       {error && <p className="text-red-500 mb-2">{error}</p>}
       <div className="mb-4">
+        <label className="block mb-1 text-gray-700 dark:text-yellow-300">Profile Picture</label>
+        <input type="file" accept="image/*" onChange={handleFileChange} />
+        {preview && (
+          <img src={preview} alt="Profile Preview" className="mt-2 w-24 h-24 rounded-full object-cover" />
+        )}
+      </div>
+      <div className="mb-4">
         <label className="block mb-1 text-gray-700 dark:text-yellow-300">Bio</label>
         <textarea
           value={bio}
@@ -71,26 +73,6 @@ const ProfileEdit = ({ user, onProfileUpdated }) => {
           className="w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:text-yellow-300"
           rows={3}
         />
-      </div>
-      <div className="mb-4">
-        <label className="block mb-1 text-gray-700 dark:text-yellow-300">Gender</label>
-        <select
-          value={gender}
-          onChange={(e) => setGender(e.target.value)}
-          className="w-full p-2 border border-gray-300 rounded dark:bg-gray-700 dark:text-yellow-300"
-        >
-          <option value="">Select gender</option>
-          <option value="male">Male</option>
-          <option value="female">Female</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-      <div className="mb-4">
-        <label className="block mb-1 text-gray-700 dark:text-yellow-300">Profile Picture</label>
-        <input type="file" accept="image/*" onChange={handleFileChange} />
-        {preview && (
-          <img src={preview} alt="Profile Preview" className="mt-2 w-24 h-24 rounded-full object-cover" />
-        )}
       </div>
       <button
         type="submit"
