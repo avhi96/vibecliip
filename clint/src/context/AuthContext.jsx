@@ -43,7 +43,8 @@ const AuthProvider = ({ children }) => {
           setUser(null);
           setLoading(false);
           localStorage.removeItem('token');
-          // Redirect to login page on refresh token failure
+          // Call backend logout API to clear refresh token cookie
+          await axios.get('http://localhost:8000/api/v1/auth/logout', { withCredentials: true });
           window.location.href = '/login';
           return Promise.reject(refreshError);
         }
@@ -51,6 +52,7 @@ const AuthProvider = ({ children }) => {
       return Promise.reject(error);
     }
   );
+
   useEffect(() => {
     let isMounted = true;
 
@@ -72,7 +74,7 @@ const AuthProvider = ({ children }) => {
           setFollowedUserIds(newUser?.following?.map(f => f._id) || []);
         }
       } catch (error) {
-        console.log(error)
+        console.error('Error fetching user data:', error);
         if (isMounted) {
           setUser(null);
           setFollowedUserIds([]);
@@ -114,10 +116,12 @@ const AuthProvider = ({ children }) => {
     updateUser(userData);
   };
 
-  const logout = () => {
+  const logout = async () => {
     localStorage.removeItem('token');
     setUser(null);
     setFollowedUserIds([]);
+    // Call backend logout API to clear refresh token cookie
+    await axios.get('http://localhost:8000/api/v1/auth/logout', { withCredentials: true });
   };
 
   return (

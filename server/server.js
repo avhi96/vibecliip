@@ -55,6 +55,11 @@ app.get("/", (req, res) => {
 
 app.use(cors(corsOptions));
 
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true
+}));
+
 // api routes
 app.use("/api/v1/user", userRoute);
 app.use("/api/v1/post", postRoute);

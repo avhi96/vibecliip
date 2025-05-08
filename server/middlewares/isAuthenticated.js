@@ -2,14 +2,12 @@ import jwt from "jsonwebtoken";
 
 const isAuthenticated = async (req, res, next) => {
   try {
-    let token = req.cookies.refreshToken; // changed from token to refreshToken cookie
+    let token;
 
-    // If no token in cookies, check Authorization header
-    if (!token) {
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.split(' ')[1];
-      }
+    // Check Authorization header for access token
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
     }
 
     console.log('Token extracted:', token);

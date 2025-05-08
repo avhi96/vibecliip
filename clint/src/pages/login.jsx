@@ -83,7 +83,7 @@ const Login = () => {
       <button
         onClick={() => toggleTheme()}
         aria-label="Toggle Theme"
-        className="absolute top-4 right-4 p-2 rounded-full bg-yellow-400 text-gray-900 hover:bg-yellow-500 shadow-lg transition duration-300 z-50"
+        className="absolute top-4 right-4 p-2 rounded-full border border-yellow-500 text-gray-900  shadow-lg transition duration-300 z-50"
         title="Switch light/dark theme"
       >
         {darkMode ? '☀️' : '🌙'}

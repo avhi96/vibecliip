@@ -13,190 +13,190 @@ import Notification from '../models/notification.model.js';
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
-    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+    secure: process.env.SMTP_SECURE === 'false', // true for 465, false for other ports
     auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+  },
 });
 
 export const getCurrentUser = async (req, res) => {
-  try {
-    const userId = req.id;
-    if (!userId) {
-      return res.status(400).json({
-        message: "User ID is required.",
-        success: false,
-      });
-    }
-
-    const user = await User.findById(userId).select('-password');
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found.",
-        success: false,
-      });
-    }
-
-    return res.status(200).json({
-      user,
-      success: true,
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      message: "Server error",
+try {
+  const userId = req.id;
+  if (!userId) {
+    return res.status(400).json({
+      message: "User ID is required.",
       success: false,
     });
   }
+
+  const user = await User.findById(userId).select('-password');
+  if (!user) {
+    return res.status(404).json({
+      message: "User not found.",
+      success: false,
+    });
+  }
+
+  return res.status(200).json({
+    user,
+    success: true,
+  });
+} catch (error) {
+  console.error(error);
+  return res.status(500).json({
+    message: "Server error",
+    success: false,
+  });
+}
 }; 
 
 export const register = async (req, res) => {
-    try {
-        const { username, email, password } = req.body;
-        if (!username || !email || !password) {
-            return res.status(401).json({
-                message: "Something is missing, please check!",
-                success: false,
-            });
-        }
-        const user = await User.findOne({ email });
-        if (user) {
-            return res.status(401).json({
-                message: "Try different email",
-                success: false,
-            });
-        }
-        const hashedPassword = await bcrypt.hash(password, 10);
-        await User.create({
-            username,
-            email,
-            password: hashedPassword
-        });
-        return res.status(201).json({
-            message: "Account created successfully.",
-            success: true,
-        });
-    } catch (error) {
-        console.log(error);
-    }
+  try {
+      const { username, email, password } = req.body;
+      if (!username || !email || !password) {
+          return res.status(401).json({
+              message: "Something is missing, please check!",
+              success: false,
+          });
+      }
+      const user = await User.findOne({ email });
+      if (user) {
+          return res.status(401).json({
+              message: "Try different email",
+              success: false,
+          });
+      }
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await User.create({
+          username,
+          email,
+          password: hashedPassword
+      });
+      return res.status(201).json({
+          message: "Account created successfully.",
+          success: true,
+      });
+  } catch (error) {
+      console.log(error);
+  }
 }
 
 export const login = async (req, res) => {
-  try {
-    const { email, password, idToken } = req.body;
+try {
+  const { email, password, idToken } = req.body;
 
-    if (idToken) {
-      // Firebase social login flow
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const firebaseUid = decodedToken.uid;
-      const firebaseEmail = decodedToken.email;
+  if (idToken) {
+    // Firebase social login flow
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const firebaseUid = decodedToken.uid;
+    const firebaseEmail = decodedToken.email;
 
-      let user = await User.findOne({ email: firebaseEmail });
+    let user = await User.findOne({ email: firebaseEmail });
 
-      if (!user) {
-        // Create new user if not exists
-        const randomPassword = crypto.randomBytes(16).toString('hex');
-        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+    if (!user) {
+      // Create new user if not exists
+      const randomPassword = crypto.randomBytes(16).toString('hex');
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
-        user = await User.create({
-          username: firebaseEmail.split('@')[0],
-          email: firebaseEmail,
-          password: hashedPassword,
-        });
-      }
-
-      if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
-        throw new Error("JWT_SECRET and JWT_REFRESH_SECRET must be set in environment variables");
-      }
-
-      const accessToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
-      const refreshToken = jwt.sign({ userId: user._id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
-
-      // Set refresh token in httpOnly cookie
-      res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // set false in development
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-
-      return res.json({
-        message: `Welcome back ${user.username}`,
-        success: true,
-        user,
-        token: accessToken,
-      });
-    } else {
-      // Traditional email/password login flow
-      if (!email || !password) {
-        return res.status(401).json({
-          message: "Something is missing, please check!",
-          success: false,
-        });
-      }
-      let user = await User.findOne({ email });
-      if (!user) {
-        return res.status(401).json({
-          message: "Incorrect email or password",
-          success: false,
-        });
-      }
-      const isPasswordMatch = await bcrypt.compare(password, user.password);
-      if (!isPasswordMatch) {
-        return res.status(401).json({
-          message: "Incorrect email or password",
-          success: false,
-        });
-      }
-
-      if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
-        throw new Error("JWT_SECRET and JWT_REFRESH_SECRET must be set in environment variables");
-      }
-      const accessToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
-      const refreshToken = jwt.sign({ userId: user._id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
-
-      // populate each post if in the posts array
-      const populatedPosts = await Promise.all(
-        user.posts.map(async (postId) => {
-          const post = await Post.findById(postId);
-          if (post.author.equals(user._id)) {
-            return post;
-          }
-          return null;
-        })
-      );
-
-      user = {
-        _id: user._id,
-        username: user.username,
-        email: user.email,
-        profilePicture: user.profilePicture,
-        bio: user.bio,
-        followers: user.followers,
-        following: user.following,
-        posts: populatedPosts,
-      };
-
-      // Set refresh token in httpOnly cookie
-      res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // set false in development
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-
-      return res.json({
-        message: `Welcome back ${user.username}`,
-        success: true,
-        user,
-        token: accessToken,
+      user = await User.create({
+        username: firebaseEmail.split('@')[0],
+        email: firebaseEmail,
+        password: hashedPassword,
       });
     }
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Server error", success: false });
+
+    if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
+      throw new Error("JWT_SECRET and JWT_REFRESH_SECRET must be set in environment variables");
+    }
+
+    const accessToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userId: user._id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
+
+    // Set refresh token in httpOnly cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production' ? true : false,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.json({
+      message: `Welcome back ${user.username}`,
+      success: true,
+      user,
+      token: accessToken,
+    });
+  } else {
+    // Traditional email/password login flow
+    if (!email || !password) {
+      return res.status(401).json({
+        message: "Something is missing, please check!",
+        success: false,
+      });
+    }
+    let user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({
+        message: "Incorrect email or password",
+        success: false,
+      });
+    }
+    const isPasswordMatch = await bcrypt.compare(password, user.password);
+    if (!isPasswordMatch) {
+      return res.status(401).json({
+        message: "Incorrect email or password",
+        success: false,
+      });
+    }
+
+    if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
+      throw new Error("JWT_SECRET and JWT_REFRESH_SECRET must be set in environment variables");
+    }
+    const accessToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userId: user._id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
+
+    // populate each post if in the posts array
+    const populatedPosts = await Promise.all(
+      user.posts.map(async (postId) => {
+        const post = await Post.findById(postId);
+        if (post.author.equals(user._id)) {
+          return post;
+        }
+        return null;
+      })
+    );
+
+    user = {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      profilePicture: user.profilePicture,
+      bio: user.bio,
+      followers: user.followers,
+      following: user.following,
+      posts: populatedPosts,
+    };
+
+    // Set refresh token in httpOnly cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production' ? true : false,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.json({
+      message: `Welcome back ${user.username}`,
+      success: true,
+      user,
+      token: accessToken,
+    });
   }
+} catch (error) {
+  console.log(error);
+  return res.status(500).json({ message: "Server error", success: false });
+}
 };
 
 
