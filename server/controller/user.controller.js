@@ -13,7 +13,7 @@ import Notification from '../models/notification.model.js';
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
-    secure: process.env.SMTP_SECURE === 'false', // true for 465, false for other ports
+    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
@@ -259,8 +259,8 @@ export const requestPasswordReset = async (req, res) => {
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetTokenExpiry = Date.now() + 3600000; // 1 hour from now
 
-    user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = resetTokenExpiry;
+    user.resetToken = resetToken;
+    user.resetTokenExpiry = resetTokenExpiry;
     await user.save();
 
     // Send reset email
@@ -317,6 +317,7 @@ export const searchUsers = async (req, res) => {
     });
   }
 };
+
 export const logout = async (_, res) => {
   try {
       return res.cookie("refreshToken", "", { maxAge: 0, httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' }).json({
@@ -327,6 +328,7 @@ export const logout = async (_, res) => {
       console.log(error);
   }
 };
+
 export const getProfile = async (req, res) => {
   try {
       const userId = req.params.id;
@@ -339,6 +341,7 @@ export const getProfile = async (req, res) => {
       console.log(error);
   }
 };
+
 export const getSuggestedUsers = async (req, res) => {
   try {
       const suggestedUsers = await User.find({ _id: { $ne: req.id } }).select("-password");
@@ -355,6 +358,7 @@ export const getSuggestedUsers = async (req, res) => {
       console.log(error);
   }
 };
+
 export const followOrUnfollow = async (req, res) => {
   try {
       const followKrneWala = req.id; // patel
@@ -395,4 +399,4 @@ export const followOrUnfollow = async (req, res) => {
   } catch (error) {
       console.log(error);
   }
-}
+};
