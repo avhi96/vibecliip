@@ -22,16 +22,25 @@ dotenv.config({ path: './server/.env' });
 const app = express();
 
 let serviceAccount;
-try {
-  serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf-8'));
-} catch (error) {
-  console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT environment variable:', error);
-  process.exit(1);
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf-8'));
+  } catch (error) {
+    console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT environment variable:', error);
+    process.exit(1);
+  }
+} else {
+  console.warn('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
+  serviceAccount = null;
 }
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+if (serviceAccount) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+} else {
+  admin.initializeApp();
+}
 
 const PORT = process.env.PORT || 8000;
 
