@@ -31,7 +31,7 @@ const Login = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      const res = await axios.post(`${API_BASE_URL}/api/v1/auth/login`, input, {
+      const res = await axios.post(`${API_BASE_URL}/auth/login`, input, {
         headers: {
           'Content-Type': 'application/json',
         },
