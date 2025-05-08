@@ -10,7 +10,7 @@ const AuthProvider = ({ children }) => {
   const [followedUserIds, setFollowedUserIds] = useState([]);
 
   const axiosInstance = axios.create({
-    baseURL: 'https://vibecliip.onrender.com',  // Replace with your actual deployed backend URL after deployment
+    baseURL: 'https://vibecliip.onrender.com/api/v1',  // Replace with your actual deployed backend URL after deployment
     withCredentials: true,
   });
 

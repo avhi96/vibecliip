@@ -61,7 +61,7 @@ const Login = () => {
       const user = result.user;
       const idToken = await user.getIdToken();
 
-      const res = await axios.post(`${API_BASE_URL}/api/v1/auth/login`, { idToken }, {
+      const res = await axios.post(`${API_BASE_URL}/auth/login`, { idToken }, {
         headers: {
           'Content-Type': 'application/json',
         },
