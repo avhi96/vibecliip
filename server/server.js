@@ -50,7 +50,7 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 const corsOptions = {
-    origin: ['https://vibecliip.vercel.app', 'http://localhost:3000', 'http://localhost:5173'],  // Added localhost origins for local development
+    origin:  'http://localhost:5173',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
